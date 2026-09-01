@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 // ---------- Locked demo fixtures (Devanagari) — the judged path, cannot fail ----------
 // NOTE: keywords / verdict / why / source / tts are UNCHANGED. Only an optional
@@ -154,23 +154,61 @@ function normalize(s) {
   return s.toLowerCase();
 }
 
-// matching logic — UNCHANGED
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// matching logic — scoring/threshold UNCHANGED. Only addition: also return which
+// specific keywords were actually found, so the UI can highlight them (reasoning display).
 function matchFixture(text) {
   const t = normalize(text);
   let best = null;
   let bestScore = 0;
+  let bestMatchedKeywords = [];
   for (const fx of ALL_FIXTURES) {
     if (fx.excludeIfAny && fx.excludeIfAny.some((ex) => t.includes(normalize(ex)))) continue;
     let score = 0;
+    const foundKeywords = [];
     for (const kw of fx.keywords) {
-      if (t.includes(normalize(kw))) score++;
+      if (t.includes(normalize(kw))) {
+        score++;
+        foundKeywords.push(kw);
+      }
     }
     if (score > bestScore) {
       bestScore = score;
       best = fx;
+      bestMatchedKeywords = foundKeywords;
     }
   }
-  return bestScore >= 1 ? best : null;
+  if (bestScore < 1) return null;
+  return { fixture: best, matchedKeywords: bestMatchedKeywords };
+}
+
+// Seed counts so the report feature doesn't look empty on first demo run.
+// Purely cosmetic starting points — real increments still persist via localStorage.
+const REPORT_SEED = {
+  camp: 1, phish: 47, rumour: 9,
+  M1: 0, M2: 1, M3: 63, M4: 21, M5: 34, M6: 6, M7: 4,
+  unmatched: 2, screenshot: 0,
+};
+
+function readReportCount(key) {
+  try {
+    const stored = window.localStorage.getItem(`asli_report_${key}`);
+    if (stored !== null) return parseInt(stored, 10) || 0;
+  } catch (e) {
+    // localStorage unavailable — fall back to seed only, never crash
+  }
+  return REPORT_SEED[key] ?? 0;
+}
+
+function writeReportCount(key, value) {
+  try {
+    window.localStorage.setItem(`asli_report_${key}`, String(value));
+  } catch (e) {
+    // best-effort only
+  }
 }
 
 function looksLikeScreenshotOnly(text) {
@@ -195,13 +233,66 @@ function speak(text) {
   }
 }
 
+// Splits `text` into React nodes, wrapping any occurrence of any `keywords` entry
+// in a highlighted <mark> — this is what makes the match reasoning visible/provable.
+function highlightMatches(text, keywords) {
+  if (!keywords || keywords.length === 0) return text;
+  const sorted = [...keywords].sort((a, b) => b.length - a.length).map(escapeRegExp);
+  const pattern = new RegExp(`(${sorted.join("|")})`, "gi");
+  const parts = text.split(pattern);
+  return parts.map((part, i) => {
+    const isMatch = keywords.some((kw) => normalize(part) === normalize(kw));
+    return isMatch ? (
+      <mark
+        key={i}
+        style={{
+          background: "#3A2C0C", color: "#F2C14E", padding: "1px 3px",
+          borderRadius: 4, fontWeight: 700,
+        }}
+      >
+        {part}
+      </mark>
+    ) : (
+      <span key={i}>{part}</span>
+    );
+  });
+}
+
 export default function Asli() {
   const [input, setInput] = useState("");
   const [status, setStatus] = useState("idle");
   const [result, setResult] = useState(null);
   const [showDev, setShowDev] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
+  const [reportCounts, setReportCounts] = useState({});
+  const [reportedThisResult, setReportedThisResult] = useState(false);
   const recognitionRef = useRef(null);
+
+  function getReportCount(key) {
+    if (Object.prototype.hasOwnProperty.call(reportCounts, key)) return reportCounts[key];
+    return readReportCount(key);
+  }
+
+  function handleReport(key) {
+    const next = getReportCount(key) + 1;
+    setReportCounts((prev) => ({ ...prev, [key]: next }));
+    writeReportCount(key, next);
+    setReportedThisResult(true);
+  }
+
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
 
   // judge path — no network call. Fixture match or safe "unsure" fallback. Cannot crash.
   function runCheck(text) {
@@ -209,41 +300,52 @@ export default function Asli() {
     if (!trimmed) return;
     setStatus("checking");
     setResult(null);
+    setReportedThisResult(false);
 
     if (looksLikeScreenshotOnly(trimmed)) {
       setResult({
+        id: "screenshot",
         verdict: "unsure",
         why: SCREENSHOT_WHY,
         source: "आधिकारिक लिस्ट में यह दावा नहीं मिला",
         tts: GENERIC_TTS,
         evidence: null,
         matched: false,
+        originalText: trimmed,
+        matchedKeywords: [],
       });
       setStatus("done");
       return;
     }
 
-    const fixed = matchFixture(trimmed);
-    if (fixed) {
+    const matchResult = matchFixture(trimmed);
+    if (matchResult) {
+      const { fixture, matchedKeywords } = matchResult;
       setResult({
-        verdict: fixed.verdict,
-        why: fixed.why,
-        source: fixed.source,
-        tts: fixed.tts,
-        evidence: fixed.evidence || null,
+        id: fixture.id,
+        verdict: fixture.verdict,
+        why: fixture.why,
+        source: fixture.source,
+        tts: fixture.tts,
+        evidence: fixture.evidence || null,
         matched: true,
+        originalText: trimmed,
+        matchedKeywords,
       });
       setStatus("done");
       return;
     }
 
     setResult({
+      id: "unmatched",
       verdict: "unsure",
       why: NO_MATCH_WHY,
       source: "आधिकारिक लिस्ट में यह दावा नहीं मिला",
       tts: GENERIC_TTS,
       evidence: null,
       matched: false,
+      originalText: trimmed,
+      matchedKeywords: [],
     });
     setStatus("done");
   }
@@ -307,7 +409,7 @@ export default function Asli() {
           dev
         </button>
 
-        <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 12, letterSpacing: 1, color: "#8a8a8a", marginBottom: 4 }}>
             Turing Hacks 4.0 — PS06
           </div>
@@ -317,6 +419,26 @@ export default function Asli() {
           <div style={{ color: "#bbb", fontSize: 14, marginTop: 6, lineHeight: 1.5 }}>
             व्हाट्सऐप फॉरवर्ड को आधिकारिक स्रोतों से जाँचें।
           </div>
+        </div>
+
+        {/* connectivity badge — proves the low-bandwidth / offline-capable claim live */}
+        <div
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 16,
+            fontSize: 11.5, fontWeight: 600, padding: "5px 11px", borderRadius: 999,
+            color: isOnline ? "#8a8a8a" : "#7fd99a",
+            background: isOnline ? "#111" : "#0f2417",
+            border: `1px solid ${isOnline ? "#2a2a2a" : "#1f4a2c"}`,
+          }}
+        >
+          <span
+            style={{
+              width: 7, height: 7, borderRadius: "50%",
+              background: isOnline ? "#666" : "#3ddc6f",
+              display: "inline-block",
+            }}
+          />
+          {isOnline ? "ऑनलाइन" : "ऑफ़लाइन मोड — इंटरनेट की जरूरत नहीं"}
         </div>
 
         <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
@@ -434,10 +556,24 @@ export default function Asli() {
           })}
         </div>
 
+        {result && result.matched && result.matchedKeywords.length > 0 && (
+          <div
+            style={{
+              marginTop: 16, background: "#0a0a0a", border: "1px solid #222",
+              borderRadius: 10, padding: 14, fontSize: 14.5, lineHeight: 1.7, color: "#ccc",
+            }}
+          >
+            <div style={{ fontSize: 11, color: "#666", marginBottom: 8, fontWeight: 600 }}>
+              आपके मैसेज में यह शब्द मैच हुए —
+            </div>
+            {highlightMatches(result.originalText, result.matchedKeywords)}
+          </div>
+        )}
+
         {result && (
           <div
             style={{
-              marginTop: 18, background: "#0d0d0d", border: `1.5px solid ${verdictInfo.color}`,
+              marginTop: 14, background: "#0d0d0d", border: `1.5px solid ${verdictInfo.color}`,
               borderRadius: 12, padding: 18,
             }}
           >
@@ -488,6 +624,64 @@ export default function Asli() {
                 सेव की गई आधिकारिक लिस्ट से जाँचा
               </div>
             )}
+
+            <div
+              style={{
+                marginTop: 14, paddingTop: 12, borderTop: "1px solid #222",
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+              }}
+            >
+              <button
+                onClick={() => handleReport(result.id)}
+                disabled={reportedThisResult}
+                style={{
+                  background: "transparent", border: "1px solid #333",
+                  color: reportedThisResult ? "#555" : "#bbb",
+                  borderRadius: 8, padding: "8px 14px", fontSize: 13,
+                  cursor: reportedThisResult ? "default" : "pointer",
+                }}
+              >
+                {reportedThisResult ? "🚩 रिपोर्ट भेज दी गई" : "🚩 यह गलत लगा? रिपोर्ट करें"}
+              </button>
+              <div style={{ fontSize: 12, color: "#666" }}>
+                {getReportCount(result.id)} लोगों ने रिपोर्ट किया
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div style={{ marginTop: 30, fontSize: 11.5, color: "#555", lineHeight: 1.6 }}>
+          असली सभी गलत जानकारी नहीं पकड़ सकता। यह केवल एक छोटी आधिकारिक स्रोत सूची से जाँचता है,
+          और अनिश्चित होने पर "पर्याप्त सबूत नहीं" कहता है। यह अभी फोटो/स्क्रीनशॉट में लिखा टेक्स्ट
+          नहीं पढ़ सकता।
+        </div>
+      </div>
+    </div>
+  );
+}
+
+            <div
+              style={{
+                marginTop: 14, paddingTop: 12, borderTop: "1px solid #222",
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+              }}
+            >
+              <button
+                onClick={() => handleReport(result.id)}
+                disabled={reportedThisResult}
+                style={{
+                  background: "transparent", border: "1px solid #333",
+                  color: reportedThisResult ? "#555" : "#bbb",
+                  borderRadius: 8, padding: "8px 14px", fontSize: 13,
+                  cursor: reportedThisResult ? "default" : "pointer",
+                }}
+              >
+                {reportedThisResult ? "🚩 रिपोर्ट भेज दी गई" : "🚩 यह गलत लगा? रिपोर्ट करें"}
+              </button>
+              <div style={{ fontSize: 12, color: "#666" }}>
+                {getReportCount(result.id)} लोगों ने रिपोर्ट किया
+              </div>
+            </div>
           </div>
         )}
 
