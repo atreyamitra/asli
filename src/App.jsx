@@ -659,38 +659,3 @@ export default function Asli() {
     </div>
   );
 }
-
-            <div
-              style={{
-                marginTop: 14, paddingTop: 12, borderTop: "1px solid #222",
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-              }}
-            >
-              <button
-                onClick={() => handleReport(result.id)}
-                disabled={reportedThisResult}
-                style={{
-                  background: "transparent", border: "1px solid #333",
-                  color: reportedThisResult ? "#555" : "#bbb",
-                  borderRadius: 8, padding: "8px 14px", fontSize: 13,
-                  cursor: reportedThisResult ? "default" : "pointer",
-                }}
-              >
-                {reportedThisResult ? "🚩 रिपोर्ट भेज दी गई" : "🚩 यह गलत लगा? रिपोर्ट करें"}
-              </button>
-              <div style={{ fontSize: 12, color: "#666" }}>
-                {getReportCount(result.id)} लोगों ने रिपोर्ट किया
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div style={{ marginTop: 30, fontSize: 11.5, color: "#555", lineHeight: 1.6 }}>
-          असली सभी गलत जानकारी नहीं पकड़ सकता। यह केवल एक छोटी आधिकारिक स्रोत सूची से जाँचता है,
-          और अनिश्चित होने पर "पर्याप्त सबूत नहीं" कहता है। यह अभी फोटो/स्क्रीनशॉट में लिखा टेक्स्ट
-          नहीं पढ़ सकता।
-        </div>
-      </div>
-    </div>
-  );
-}
