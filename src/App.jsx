@@ -139,12 +139,7 @@ const TEST_LIBRARY = [
 
 const ALL_FIXTURES = [...CORE_FIXTURES, ...TEST_LIBRARY];
 
-// ---------- NEW: generic offline scam-pattern layer ----------
-// Purpose: give a real answer for CUSTOM messages that don't match any known
-// fixture, without any network call. This layer can ONLY ever return "false"
-// (a recognized scam red flag) — it must never invent "verified", since we
-// have no real source backing an arbitrary new claim. Anything that doesn't
-// trip a red flag still falls through to the existing "unsure" fallback.
+// ---------- Generic offline scam-pattern layer — can only ever return "false" ----------
 const SCAM_PATTERNS = [
   {
     id: "otp_pin_request",
@@ -191,9 +186,9 @@ function detectGenericScam(text) {
 }
 
 const VERDICTS = {
-  verified: { label: "सही", color: "#2FB35A", dim: "#123821" },
-  unsure: { label: "पर्याप्त सबूत नहीं", color: "#E0A62C", dim: "#3A2C0C" },
-  false: { label: "गलत लग रहा है", color: "#FF3131", dim: "#3A0F0F" },
+  verified: { label: "सही", color: "#3B6E4F", bg: "#E7EFE6" },
+  unsure: { label: "पर्याप्त सबूत नहीं", color: "#7A6A4F", bg: "#EFE9DA" },
+  false: { label: "गलत लग रहा है", color: "#A23B2E", bg: "#F5E7E2" },
 };
 
 const SCREENSHOT_HINTS = ["screenshot", "स्क्रीनशॉट", "photo", "image", "फोटो", "जेपीजी", "png", "jpg"];
@@ -213,8 +208,7 @@ function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// matching logic — scoring/threshold UNCHANGED. Also returns which keywords were
-// actually found, purely so the grey message bubble can highlight them.
+// matching logic — scoring/threshold UNCHANGED.
 function matchFixture(text) {
   const t = normalize(text);
   let best = null;
@@ -272,7 +266,7 @@ function highlightMatches(text, keywords) {
     return isMatch ? (
       <mark
         key={i}
-        style={{ background: "#3A2C0C", color: "#F2C14E", padding: "1px 3px", borderRadius: 4, fontWeight: 700 }}
+        style={{ background: "#F0D48A", color: "#3A2412", padding: "1px 3px", borderRadius: 4, fontWeight: 700 }}
       >
         {part}
       </mark>
@@ -297,6 +291,162 @@ async function copyFamilySummary(result) {
   }
 }
 
+// ---------- Village background scene, ported from the paper-design mockup ----------
+function VillageBackground() {
+  return (
+    <div style={{ position: "fixed", inset: 0, width: "100vw", height: "100vh", zIndex: 0 }}>
+      <svg viewBox="0 0 1400 1000" preserveAspectRatio="xMidYMid slice" style={{ width: "100%", height: "100%", display: "block" }}>
+        <defs>
+          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#79C3E8" />
+            <stop offset="38%" stopColor="#BEE6DC" />
+            <stop offset="62%" stopColor="#CFE8A8" />
+            <stop offset="100%" stopColor="#8FBF5E" />
+          </linearGradient>
+          <radialGradient id="sunGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#FFF6D8" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="#FFF6D8" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+
+        <rect width="1400" height="1000" fill="url(#sky)" />
+        <circle cx="1190" cy="140" r="150" fill="url(#sunGlow)" />
+        <circle cx="1190" cy="140" r="42" fill="#FFF6D8" opacity="0.9" />
+
+        <g fill="#FFFFFF" opacity="0.8">
+          <g transform="translate(230,120)">
+            <ellipse cx="0" cy="0" rx="46" ry="20" />
+            <ellipse cx="34" cy="-8" rx="34" ry="18" />
+            <ellipse cx="-32" cy="6" rx="30" ry="15" />
+          </g>
+          <g transform="translate(720,80)">
+            <ellipse cx="0" cy="0" rx="38" ry="16" />
+            <ellipse cx="28" cy="-6" rx="26" ry="14" />
+            <ellipse cx="-26" cy="4" rx="24" ry="12" />
+          </g>
+        </g>
+
+        <g stroke="#2E4A22" strokeWidth="2.5" fill="none" opacity="0.4" strokeLinecap="round">
+          <path d="M500 190 q7 -10 14 0 q7 -10 14 0" />
+          <path d="M920 220 q7 -10 14 0 q7 -10 14 0" />
+        </g>
+
+        <path d="M0 520 Q 250 465 520 510 T 1000 505 T 1400 485 V1000 H0 Z" fill="#8FC6A8" opacity="0.55" />
+        <path d="M0 580 Q 300 535 620 575 T 1150 565 T 1400 575 V1000 H0 Z" fill="#6FAE5C" opacity="0.7" />
+        <path d="M0 650 Q 350 610 700 645 T 1400 640 V1000 H0 Z" fill="#4C8A3A" opacity="0.9" />
+
+        <rect x="0" y="680" width="1400" height="320" fill="#3E6B2C" />
+
+        <g>
+          <path d="M660 900 Q 720 860 830 872 Q 940 862 990 900 Q 950 942 830 936 Q 715 944 660 900 Z" fill="#BFE6EE" opacity="0.85" />
+          <path d="M700 892 Q 800 878 950 894" stroke="#FFFFFF" strokeWidth="3" opacity="0.5" fill="none" />
+        </g>
+
+        <g stroke="#4C8A3A" strokeWidth="1.5" opacity="0.3" fill="none">
+          <path d="M0 760 Q 700 748 1400 763" />
+          <path d="M0 820 Q 700 808 1400 823" />
+          <path d="M0 880 Q 700 868 1400 883" />
+        </g>
+
+        <g opacity="0.9">
+          <g transform="translate(600,905)" fill="#3E6B2C"><circle cx="0" cy="0" r="16" /></g>
+          <g transform="translate(600,900)" fill="#E85D9E"><circle cx="-8" cy="-4" r="5" /><circle cx="4" cy="-8" r="5" /><circle cx="9" cy="2" r="5" /><circle cx="-3" cy="4" r="5" /></g>
+          <g transform="translate(1010,880)" fill="#3E6B2C"><circle cx="0" cy="0" r="14" /></g>
+          <g transform="translate(1010,876)" fill="#D6488C"><circle cx="-7" cy="-4" r="4.5" /><circle cx="4" cy="-7" r="4.5" /><circle cx="8" cy="2" r="4.5" /><circle cx="-3" cy="4" r="4.5" /></g>
+          <g transform="translate(150,940)" fill="#3E6B2C"><circle cx="0" cy="0" r="13" /></g>
+          <g transform="translate(150,936)" fill="#E85D9E"><circle cx="-6" cy="-3" r="4" /><circle cx="4" cy="-6" r="4" /><circle cx="7" cy="2" r="4" /><circle cx="-2" cy="3" r="4" /></g>
+        </g>
+
+        <g transform="translate(140,555)">
+          <rect x="-6" y="80" width="12" height="100" rx="4" fill="#4A2410" />
+          <g fill="#2F5C24">
+            <circle cx="0" cy="16" r="42" />
+            <circle cx="-36" cy="34" r="32" />
+            <circle cx="36" cy="34" r="32" />
+            <circle cx="-20" cy="58" r="28" />
+            <circle cx="20" cy="58" r="28" />
+            <circle cx="0" cy="64" r="32" />
+          </g>
+        </g>
+        <g transform="translate(1300,590)">
+          <rect x="-5" y="58" width="9" height="70" rx="3" fill="#4A2410" />
+          <g fill="#356B29">
+            <circle cx="0" cy="12" r="30" />
+            <circle cx="-26" cy="25" r="23" />
+            <circle cx="26" cy="25" r="23" />
+            <circle cx="-14" cy="42" r="20" />
+            <circle cx="14" cy="42" r="20" />
+            <circle cx="0" cy="46" r="23" />
+          </g>
+        </g>
+
+        <g transform="translate(1030,600)" fill="#4A2410" opacity="0.92">
+          <polygon points="0,-64 -86,-4 86,-4" />
+          <rect x="-62" y="-4" width="124" height="84" />
+          <rect x="-16" y="26" width="30" height="54" fill="#F6DDB2" opacity="0.7" />
+        </g>
+        <g transform="translate(430,565) scale(0.66)" fill="#4A2410" opacity="0.85">
+          <polygon points="0,-64 -86,-4 86,-4" />
+          <rect x="-62" y="-4" width="124" height="84" />
+          <rect x="-16" y="26" width="30" height="54" fill="#F6DDB2" opacity="0.7" />
+        </g>
+
+        <g transform="translate(560,860)" fill="#4A2410" opacity="0.92">
+          <g opacity="0.95">
+            <circle cx="150" cy="20" r="34" fill="none" stroke="#4A2410" strokeWidth="7" />
+            <line x1="150" y1="-14" x2="150" y2="54" stroke="#4A2410" strokeWidth="4" />
+            <line x1="116" y1="20" x2="184" y2="20" stroke="#4A2410" strokeWidth="4" />
+            <line x1="126" y1="-4" x2="174" y2="44" stroke="#4A2410" strokeWidth="4" />
+            <line x1="174" y1="-4" x2="126" y2="44" stroke="#4A2410" strokeWidth="4" />
+          </g>
+          <path d="M96 -30 L214 -30 L226 -6 L84 -6 Z" />
+          <rect x="-70" y="-16" width="170" height="6" rx="3" />
+          <path d="M-140 -18 C -168 -30 -170 4 -150 10 C -160 26 -130 30 -118 16 C -80 26 -66 4 -84 -12 C -70 -26 -100 -34 -120 -22 C -128 -30 -138 -26 -140 -18 Z" />
+          <circle cx="-172" cy="-4" r="15" />
+          <path d="M-182 -18 C -190 -30 -180 -34 -176 -24" fill="none" stroke="#4A2410" strokeWidth="4" strokeLinecap="round" />
+          <path d="M-164 -18 C -158 -30 -168 -34 -170 -24" fill="none" stroke="#4A2410" strokeWidth="4" strokeLinecap="round" />
+          <rect x="-158" y="10" width="8" height="26" rx="3" />
+          <rect x="-138" y="14" width="8" height="26" rx="3" />
+          <rect x="-112" y="12" width="8" height="26" rx="3" />
+          <rect x="-92" y="14" width="8" height="26" rx="3" />
+          <path d="M-150 6 C -158 20 -156 32 -148 40" fill="none" stroke="#4A2410" strokeWidth="4" strokeLinecap="round" />
+          <g transform="translate(160,-46)">
+            <circle cx="0" cy="-16" r="11" />
+            <path d="M-9 -26 C -14 -34 10 -34 8 -26 C 14 -22 -14 -22 -9 -26 Z" />
+            <path d="M-9 -5 C -14 -22 12 -22 9 -5 C 9 6 -9 6 -9 -5 Z" />
+            <rect x="8" y="-14" width="24" height="5" rx="2.5" transform="rotate(-18 8 -14)" />
+          </g>
+        </g>
+
+        <g transform="translate(210,910)" fill="#4A2410" opacity="0.9">
+          <rect x="-88" y="-70" width="44" height="32" rx="2" />
+          <line x1="-82" y1="-38" x2="-88" y2="-8" stroke="#4A2410" strokeWidth="4" strokeLinecap="round" />
+          <line x1="-50" y1="-38" x2="-44" y2="-8" stroke="#4A2410" strokeWidth="4" strokeLinecap="round" />
+          <g transform="translate(-12,0)">
+            <circle cx="0" cy="-68" r="11" />
+            <path d="M-12 -80 C -17 -90 13 -90 10 -80 C 17 -74 -19 -74 -12 -80 Z" />
+            <path d="M-11 -57 C -17 -78 14 -78 11 -57 C 15 -27 -15 -27 -11 -57 Z" />
+            <path d="M9 -62 L-52 -68" stroke="#4A2410" strokeWidth="5.5" strokeLinecap="round" fill="none" />
+            <path d="M-8 -52 L-14 -29" stroke="#4A2410" strokeWidth="5.5" strokeLinecap="round" fill="none" />
+            <rect x="-8" y="-29" width="6.5" height="29" rx="3" />
+            <rect x="2.5" y="-29" width="6.5" height="29" rx="3" />
+          </g>
+          <g transform="translate(36,-4)"><circle cx="0" cy="-18" r="6.5" /><path d="M-7.5 -11 C -11 -23 9 -23 7.5 -11 C 9 0 -9 0 -7.5 -11 Z" /></g>
+          <g transform="translate(58,-2)"><circle cx="0" cy="-18" r="6.5" /><path d="M-7.5 -11 C -11 -23 9 -23 7.5 -11 C 9 0 -9 0 -7.5 -11 Z" /></g>
+          <g transform="translate(80,-4)"><circle cx="0" cy="-18" r="6.5" /><path d="M-7.5 -11 C -11 -23 9 -23 7.5 -11 C 9 0 -9 0 -7.5 -11 Z" /></g>
+          <g transform="translate(102,-1)"><circle cx="0" cy="-18" r="6.5" /><path d="M-7.5 -11 C -11 -23 9 -23 7.5 -11 C 9 0 -9 0 -7.5 -11 Z" /></g>
+        </g>
+
+        <g transform="translate(1330,930)" fill="none" stroke="#4A2410" strokeWidth="5" opacity="0.85">
+          <ellipse cx="0" cy="0" rx="28" ry="9" />
+          <path d="M-28 0 L-28 -16 M28 0 L28 -16" />
+          <path d="M-28 -16 Q0 -40 28 -16" />
+        </g>
+      </svg>
+    </div>
+  );
+}
+
 export default function Asli() {
   const [input, setInput] = useState("");
   const [status, setStatus] = useState("idle");
@@ -304,6 +454,7 @@ export default function Asli() {
   const [isListening, setIsListening] = useState(false);
   const [showDevLibrary, setShowDevLibrary] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [stampAnimate, setStampAnimate] = useState(false);
   const [isOnline, setIsOnline] = useState(
     typeof navigator !== "undefined" ? navigator.onLine : true
   );
@@ -334,6 +485,15 @@ export default function Asli() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoPlayTick]);
+
+  // stamp pop-in animation retrigger on every new result
+  useEffect(() => {
+    if (result) {
+      setStampAnimate(false);
+      const id = requestAnimationFrame(() => setStampAnimate(true));
+      return () => cancelAnimationFrame(id);
+    }
+  }, [result]);
 
   // judge path — no network call. Fixture match, generic scam-pattern match, or
   // safe "unsure" fallback. Never invents "verified". Cannot crash.
@@ -380,7 +540,6 @@ export default function Asli() {
       return;
     }
 
-    // no exact fixture — check generic offline scam red flags before giving up
     const scamHit = detectGenericScam(trimmed);
     if (scamHit) {
       setResult({
@@ -448,6 +607,15 @@ export default function Asli() {
     recognition.start();
   }
 
+  async function pasteFromClipboard() {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text && text.trim()) setInput(text.trim());
+    } catch (e) {
+      // clipboard permission denied or unsupported — no-op
+    }
+  }
+
   async function handleCopy() {
     const ok = await copyFamilySummary(result);
     if (ok) {
@@ -466,284 +634,326 @@ export default function Asli() {
     <div
       style={{
         minHeight: "100vh",
-        background: "#050505",
+        position: "relative",
         display: "flex",
         justifyContent: "center",
-        padding: "28px 12px",
-        fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif",
+        padding: "44px 18px 70px",
+        fontFamily: "'Work Sans', 'Noto Sans Devanagari', sans-serif",
+        color: "#241F1A",
       }}
     >
       <style>{`
-        @keyframes asliFadeSlideIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        textarea::placeholder { color: #6b6b6b; }
+        @import url('https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Kalam:wght@400;700&display=swap');
+        @keyframes stampdown { 0% { opacity:0; transform: scale(0.8) rotate(var(--stamp-rot,0deg)); } 60% { opacity:1; } 100% { opacity:1; transform: scale(1) rotate(var(--stamp-rot,0deg)); } }
+        @keyframes micpulse { 0%,100% { box-shadow: 0 3px 7px rgba(36,31,26,0.28);} 50% { box-shadow: 0 0 0 8px rgba(162,59,46,0.18);} }
+        textarea::placeholder { color: #9C8E76; }
       `}</style>
 
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 390,
-          background: "#000",
-          color: "#fff",
-          border: "1px solid #1e1e1e",
-          borderRadius: 28,
-          boxShadow: "0 25px 60px rgba(0,0,0,0.55)",
-          padding: "20px 16px 26px",
-          position: "relative",
-          boxSizing: "border-box",
-        }}
-      >
-        {devMode && (
-          <button
-            onClick={() => setShowDevLibrary((s) => !s)}
-            style={{
-              position: "absolute", top: 12, right: 14, background: "transparent",
-              border: "none", color: "#3a3a3a", fontSize: 11, cursor: "pointer", padding: 4,
-            }}
-          >
-            dev
-          </button>
-        )}
+      <VillageBackground />
 
+      <div style={{ width: "100%", maxWidth: 560, position: "relative", zIndex: 2 }}>
         {/* Header */}
-        <div style={{ marginBottom: 16 }}>
-          <h1 style={{ fontSize: 30, fontWeight: 800, margin: 0, letterSpacing: -0.5 }}>
-            असली
-          </h1>
-          <div style={{ color: "#9a9a9a", fontSize: 14, marginTop: 4, lineHeight: 1.4 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 26, padding: "0 6px", flexWrap: "wrap", gap: 10 }}>
+          <div style={{ position: "relative", transform: "rotate(-1.2deg)" }}>
+            <div style={{ fontFamily: "'Zilla Slab', 'Noto Sans Devanagari', serif", fontWeight: 700, fontSize: 34, color: "#3A2412" }}>
+              असली
+              <svg viewBox="0 0 78 12" style={{ position: "absolute", left: -2, bottom: -9, width: 82, height: 12 }}>
+                <path d="M2 8 C 12 2, 20 11, 30 5 S 48 2, 58 7 S 70 10, 76 4" stroke="#2E6B4A" strokeWidth="3" strokeLinecap="round" fill="none" opacity="0.6" />
+              </svg>
+            </div>
+          </div>
+          <div style={{ fontFamily: "'Kalam', 'Noto Sans Devanagari', cursive", fontSize: 14.5, color: "#3A2412", textAlign: "right", lineHeight: 1.45, maxWidth: 190, transform: "rotate(1deg)", marginTop: 4 }}>
             फ़ॉरवर्ड आया। असली जाँचता है।
           </div>
-          <div
+        </div>
+
+        <p style={{ textAlign: "center", fontFamily: "'Kalam', 'Noto Sans Devanagari', cursive", fontSize: 14, color: "#3A2412", margin: "-10px 0 22px", transform: "rotate(-0.3deg)" }}>
+          एक फ़ॉरवर्ड, एक सच, एक बार में।
+        </p>
+
+        {/* connectivity pill */}
+        <div style={{ textAlign: "center", marginBottom: 16 }}>
+          <span
             style={{
-              display: "inline-flex", alignItems: "center", gap: 6, marginTop: 10,
-              fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 999,
-              color: isOnline ? "#7a7a7a" : "#7fd99a",
-              background: isOnline ? "#121212" : "#0f2417",
-              border: `1px solid ${isOnline ? "#262626" : "#1f4a2c"}`,
+              display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 600,
+              padding: "5px 12px", borderRadius: 999,
+              color: isOnline ? "#5B5040" : "#2E6B4A",
+              background: isOnline ? "rgba(36,31,26,0.06)" : "#E7EFE6",
+              border: `1px solid ${isOnline ? "rgba(36,31,26,0.15)" : "#bcdcc4"}`,
             }}
           >
-            <span
-              style={{
-                width: 6, height: 6, borderRadius: "50%",
-                background: isOnline ? "#5a5a5a" : "#3ddc6f", display: "inline-block",
-              }}
-            />
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: isOnline ? "#8a8a7a" : "#3ddc6f", display: "inline-block" }} />
             {isOnline ? "ऑनलाइन" : "ऑफ़लाइन मोड"}
-          </div>
+          </span>
         </div>
 
-        {/* Demo chips */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-          {CORE_FIXTURES.map((fx) => (
-            <button
-              key={fx.id}
-              onClick={() => tapChip(fx)}
-              style={{
-                flex: 1, background: "#141414", border: "1px solid #2a2a2a", color: "#fff",
-                borderRadius: 999, padding: "10px 8px", fontSize: 14.5, fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              {fx.chip}
-            </button>
-          ))}
-        </div>
-
-        {devMode && showDevLibrary && (
-          <div
-            style={{
-              display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14,
-              padding: 12, background: "#0a0a0a", border: "1px solid #1e1e1e", borderRadius: 10,
-            }}
-          >
-            <div style={{ width: "100%", fontSize: 11, color: "#666", marginBottom: 2 }}>
-              Dev test library ({TEST_LIBRARY.length})
-            </div>
-            {TEST_LIBRARY.map((fx) => {
-              const v = VERDICTS[fx.verdict];
-              return (
-                <button
-                  key={fx.id}
-                  onClick={() => loadDevFixture(fx)}
-                  style={{
-                    background: "#111", border: `1px solid ${v.color}55`, color: v.color,
-                    borderRadius: 6, padding: "6px 10px", fontSize: 12, cursor: "pointer",
-                  }}
-                >
-                  {fx.label}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {!result && (
-          <div style={{ fontSize: 13.5, color: "#777", textAlign: "center", margin: "6px 0 16px", lineHeight: 1.6 }}>
-            तीन उदाहरण ऊपर हैं। या मैसेज पेस्ट करें।
-          </div>
-        )}
-
-        {/* Compose box */}
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="व्हाट्सऐप वाला मैसेज यहाँ पेस्ट करें"
-          rows={3}
+        {/* Card */}
+        <div
           style={{
-            width: "100%", background: "#141414", border: "1px solid #2a2a2a",
-            borderRadius: 20, color: "#fff", fontSize: 16, padding: "14px 16px",
-            boxSizing: "border-box", resize: "none", fontFamily: "inherit",
-          }}
-        />
-
-        {voiceSupported && (
-          <button
-            onClick={startListening}
-            disabled={isListening}
-            style={{
-              width: "100%", marginTop: 10,
-              background: isListening ? "#1a1a0d" : "#141414",
-              border: `1px solid ${isListening ? "#E0A62C" : "#2a2a2a"}`,
-              color: isListening ? "#E0A62C" : "#fff", fontWeight: 600, fontSize: 15,
-              borderRadius: 14, padding: "12px 16px",
-              cursor: isListening ? "default" : "pointer",
-            }}
-          >
-            {isListening ? "🎙️ सुन रहा हूँ..." : "🎤 बोलकर बताएँ"}
-          </button>
-        )}
-
-        <button
-          onClick={() => runCheck(input)}
-          disabled={status === "checking" || !input.trim()}
-          style={{
-            width: "100%", marginTop: 10, background: "#FF3131", border: "none", color: "#fff",
-            fontWeight: 700, fontSize: 17, borderRadius: 14, padding: "15px 20px",
-            cursor: status === "checking" ? "default" : "pointer",
-            opacity: status === "checking" || !input.trim() ? 0.6 : 1,
+            background: "linear-gradient(178deg, #FBF7EA 0%, #EEE3C6 100%)",
+            borderRadius: "3px 16px 4px 18px",
+            padding: "26px 24px 24px",
+            boxShadow: "0 26px 50px -18px rgba(20,14,8,0.5), 0 4px 14px -4px rgba(20,14,8,0.28)",
+            transform: "rotate(0.5deg)",
+            border: "1px solid rgba(36,31,26,0.09)",
+            position: "relative",
+            boxSizing: "border-box",
           }}
         >
-          {status === "checking" ? "जाँच रहे हैं…" : "जाँचें"}
-        </button>
+          <div style={{ position: "absolute", top: -9, left: 26, width: 14, height: 14, borderRadius: "50%", background: "radial-gradient(circle at 35% 30%, #d95b4a, #8f2c1f 75%)", boxShadow: "0 2px 3px rgba(0,0,0,0.35)", transform: "rotate(-8deg)" }} />
 
-        {(input || result) && (
-          <button
-            onClick={() => { setInput(""); setResult(null); setStatus("idle"); }}
-            style={{
-              width: "100%", marginTop: 8, background: "transparent", border: "none",
-              color: "#666", fontSize: 13, cursor: "pointer", padding: "6px",
-            }}
-          >
-            मिटाएँ
-          </button>
-        )}
-
-        {/* Result — the hero */}
-        {result && (
-          <div
-            ref={resultRef}
-            style={{ marginTop: 22, animation: "asliFadeSlideIn 200ms ease-out" }}
-          >
-            <div
-              style={{
-                textAlign: "center", fontSize: 26, fontWeight: 800,
-                color: verdictInfo.color, marginBottom: 14,
-              }}
+          {devMode && (
+            <button
+              onClick={() => setShowDevLibrary((s) => !s)}
+              style={{ position: "absolute", top: 10, right: 14, background: "transparent", border: "none", color: "#c9bda0", fontSize: 11, cursor: "pointer" }}
             >
-              {verdictInfo.label}
-            </div>
+              dev
+            </button>
+          )}
 
-            {/* incoming message bubble */}
-            <div
-              style={{
-                background: "#1f1f1f", color: "#eee", borderRadius: "16px 16px 16px 4px",
-                padding: "12px 14px", fontSize: 15.5, lineHeight: 1.6, marginBottom: 10,
-                maxWidth: "92%",
-              }}
-            >
-              {highlightMatches(result.originalText, result.matchedKeywords)}
-            </div>
+          <h1 style={{ fontFamily: "'Zilla Slab', 'Noto Sans Devanagari', serif", fontWeight: 600, fontSize: 20, margin: "4px 0 4px", lineHeight: 1.35 }}>
+            यह मैसेज सही है या नहीं?
+          </h1>
+          <p style={{ fontSize: 13, color: "#5B5040", margin: "0 0 20px" }}>
+            बोलिए, पेस्ट करिए, या नीचे टाइप करिए।
+          </p>
 
-            {/* Asli's reply bubble */}
-            <div
-              style={{
-                background: "#0f2b22", color: "#e6f5ee", borderRadius: "16px 16px 4px 16px",
-                padding: "14px 16px", fontSize: 15.5, lineHeight: 1.65,
-                marginLeft: "8%", marginBottom: 12,
-              }}
-            >
-              <div style={{ marginBottom: result.evidence ? 8 : 0 }}>
-                <b>क्यों:</b> {result.why}
-              </div>
-              <div style={{ fontSize: 13, color: "#a9c9bd", marginBottom: result.evidence ? 6 : 0 }}>
-                स्रोत: {result.source}
-              </div>
-              {result.evidence && (
-                <div style={{ fontSize: 13, color: "#a9c9bd" }}>{result.evidence}</div>
-              )}
-            </div>
-
-            {result.matched && (
-              <div
-                style={{
-                  display: "inline-block", fontSize: 11.5, fontWeight: 600,
-                  color: "#7fd99a", background: "#0f2417", border: "1px solid #1f4a2c",
-                  borderRadius: 999, padding: "5px 12px", marginBottom: 14,
-                }}
-              >
-                सेव की गई आधिकारिक लिस्ट से जाँचा
+          {/* quick actions */}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 26, marginBottom: 18 }}>
+            {voiceSupported && (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                <button
+                  onClick={startListening}
+                  disabled={isListening}
+                  aria-label="बोलिए"
+                  style={{
+                    width: 52, height: 52, borderRadius: "50%", border: "none", cursor: isListening ? "default" : "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    background: isListening ? "#A23B2E" : "#2B4C7E", color: "#F6EFDD",
+                    transform: "rotate(-4deg)",
+                    boxShadow: "0 3px 7px rgba(36,31,26,0.28), 0 1px 0 rgba(255,255,255,0.15) inset",
+                    animation: isListening ? "micpulse 1.1s ease-in-out infinite" : "none",
+                  }}
+                >
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round">
+                    <path d="M12 1c-1.7 0-3 1.4-3 3.2v7.6c0 1.8 1.3 3.2 3 3.2s3-1.4 3-3.2V4.2C15 2.4 13.7 1 12 1z" />
+                    <path d="M18.5 10.5v1.5c0 3.6-2.9 6.5-6.5 6.5s-6.5-2.9-6.5-6.5v-1.5" />
+                    <line x1="12" y1="19.5" x2="12" y2="23" />
+                  </svg>
+                </button>
+                <span style={{ fontFamily: "'Noto Sans Devanagari','Work Sans',sans-serif", fontSize: 12, fontWeight: 600, color: "#5B5040" }}>
+                  {isListening ? "सुन रहा हूँ..." : "बोलिए"}
+                </span>
               </div>
             )}
-
-            {result.genericScam && (
-              <div
-                style={{
-                  display: "inline-block", fontSize: 11.5, fontWeight: 600,
-                  color: "#f2a65a", background: "#2a1a0d", border: "1px solid #4a2f1f",
-                  borderRadius: 999, padding: "5px 12px", marginBottom: 14,
-                }}
-              >
-                सामान्य धोखा पैटर्न से मेल खाया
-              </div>
-            )}
-
-            {result.verdict === "unsure" && (
-              <div style={{ fontSize: 13, color: "#888", marginBottom: 14, fontStyle: "italic" }}>
-                अनुमान नहीं लगा रहे।
-              </div>
-            )}
-
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
               <button
-                onClick={() => speak(result.tts || result.why)}
+                onClick={pasteFromClipboard}
+                aria-label="पेस्ट करिए"
                 style={{
-                  flex: 1, background: "#141414", border: "1px solid #2a2a2a", color: "#fff",
-                  borderRadius: 12, padding: "12px 10px", fontSize: 14, cursor: "pointer",
+                  width: 52, height: 52, borderRadius: "50%", border: "none", cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "#C77F1D", color: "#2E1D08", transform: "rotate(3deg)",
+                  boxShadow: "0 3px 7px rgba(36,31,26,0.28), 0 1px 0 rgba(255,255,255,0.15) inset",
                 }}
               >
-                🔊 सुनें
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="6" y="4" width="12" height="17" rx="2" />
+                  <rect x="9" y="2" width="6" height="4" rx="1.3" />
+                  <line x1="9" y1="11" x2="15" y2="11" />
+                  <line x1="9" y1="15" x2="15" y2="15" />
+                </svg>
               </button>
-              <button
-                onClick={handleCopy}
-                style={{
-                  flex: 1, background: "#141414", border: "1px solid #2a2a2a",
-                  color: copied ? "#7fd99a" : "#fff",
-                  borderRadius: 12, padding: "12px 10px", fontSize: 14, cursor: "pointer",
-                }}
-              >
-                {copied ? "✓ कॉपी हो गया" : "परिवार को भेजें"}
-              </button>
+              <span style={{ fontFamily: "'Noto Sans Devanagari','Work Sans',sans-serif", fontSize: 12, fontWeight: 600, color: "#5B5040" }}>
+                पेस्ट करिए
+              </span>
             </div>
           </div>
-        )}
 
-        <div style={{ marginTop: 26, fontSize: 11, color: "#4d4d4d", lineHeight: 1.6 }}>
-          असली सभी गलत जानकारी नहीं पकड़ सकता। यह एक छोटी आधिकारिक स्रोत सूची और सामान्य धोखा
-          पैटर्न से जाँचता है, और अनिश्चित होने पर "पर्याप्त सबूत नहीं" कहता है। यह अभी
-          फोटो/स्क्रीनशॉट में लिखा टेक्स्ट नहीं पढ़ सकता।
+          <p style={{ fontSize: 11.5, color: "#5B5040", margin: "0 0 6px 2px" }}>या यहाँ टाइप करिए —</p>
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="व्हाट्सऐप वाला मैसेज यहाँ पेस्ट करें"
+            rows={3}
+            style={{
+              width: "100%", minHeight: 78, resize: "vertical",
+              border: "1.5px solid rgba(36,31,26,0.15)", borderRadius: 10,
+              background: "rgba(255,255,255,0.5)", padding: "12px 13px",
+              fontFamily: "'Noto Sans Devanagari', 'Work Sans', sans-serif",
+              fontSize: 15, lineHeight: 1.55, color: "#241F1A", outline: "none", boxSizing: "border-box",
+            }}
+          />
+
+          <button
+            onClick={() => runCheck(input)}
+            disabled={status === "checking" || !input.trim()}
+            style={{
+              width: "100%", marginTop: 12, background: "#241F1A", color: "#F6EFDD",
+              padding: "13px 16px", fontFamily: "'Zilla Slab','Noto Sans Devanagari',serif",
+              fontWeight: 600, fontSize: 16, borderRadius: 10, border: "none",
+              cursor: status === "checking" ? "default" : "pointer",
+              opacity: status === "checking" || !input.trim() ? 0.6 : 1,
+            }}
+          >
+            {status === "checking" ? "जाँच रहे हैं…" : "जाँचें"}
+          </button>
+
+          {(input || result) && (
+            <button
+              onClick={() => { setInput(""); setResult(null); setStatus("idle"); }}
+              style={{ width: "100%", marginTop: 6, background: "transparent", border: "none", color: "#8a7e64", fontSize: 12.5, cursor: "pointer", padding: 4 }}
+            >
+              मिटाएँ
+            </button>
+          )}
+
+          {!result && (
+            <div style={{ fontSize: 13, color: "#7A6A4F", textAlign: "center", margin: "14px 0 4px", fontFamily: "'Kalam','Noto Sans Devanagari',cursive" }}>
+              तीन उदाहरण नीचे हैं। या मैसेज पेस्ट करें।
+            </div>
+          )}
+
+          {/* demo chips */}
+          <div style={{ marginTop: 20 }}>
+            <span style={{ fontFamily: "'Kalam', cursive", fontSize: 13.5, color: "#5B5040", marginBottom: 8, display: "inline-block", transform: "rotate(-1deg)" }}>
+              या यह try करें —
+            </span>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
+              {CORE_FIXTURES.map((fx, i) => (
+                <button
+                  key={fx.id}
+                  onClick={() => tapChip(fx)}
+                  style={{
+                    background: "rgba(36,31,26,0.045)", border: "1.3px dashed rgba(36,31,26,0.15)",
+                    color: "#241F1A", fontSize: 12.8, fontWeight: 500, padding: "7px 12px",
+                    borderRadius: 5, cursor: "pointer",
+                    transform: `rotate(${i === 0 ? -1 : i === 1 ? 0.8 : -0.5}deg)`,
+                  }}
+                >
+                  {fx.chip}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {devMode && showDevLibrary && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 14, padding: 12, background: "rgba(36,31,26,0.04)", border: "1px dashed rgba(36,31,26,0.15)", borderRadius: 10 }}>
+              <div style={{ width: "100%", fontSize: 11, color: "#8a7e64", marginBottom: 2 }}>Dev test library ({TEST_LIBRARY.length})</div>
+              {TEST_LIBRARY.map((fx) => {
+                const v = VERDICTS[fx.verdict];
+                return (
+                  <button
+                    key={fx.id}
+                    onClick={() => loadDevFixture(fx)}
+                    style={{ background: "#fff", border: `1px solid ${v.color}55`, color: v.color, borderRadius: 6, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}
+                  >
+                    {fx.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Result */}
+          {result && (
+            <div ref={resultRef} style={{ marginTop: 24, paddingTop: 22, borderTop: "1.5px dashed rgba(36,31,26,0.15)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 15, marginBottom: 15, flexWrap: "wrap" }}>
+                <span
+                  style={{
+                    fontFamily: "'Zilla Slab', 'Noto Sans Devanagari', serif", fontWeight: 700, fontSize: 14.5,
+                    letterSpacing: "0.02em", padding: "8px 15px", borderRadius: 4,
+                    border: `2.5px solid ${verdictInfo.color}`, display: "inline-block",
+                    color: verdictInfo.color, background: verdictInfo.bg,
+                    opacity: stampAnimate ? 1 : 0,
+                    transform: stampAnimate ? "scale(1) rotate(-2deg)" : "scale(0.8) rotate(-2deg)",
+                    transition: "opacity 300ms ease, transform 300ms cubic-bezier(.2,.9,.35,1.2)",
+                  }}
+                >
+                  {verdictInfo.label}
+                </span>
+              </div>
+
+              {/* incoming message note */}
+              <div
+                style={{
+                  background: "rgba(255,255,255,0.55)", border: "1px solid rgba(36,31,26,0.1)",
+                  color: "#3A2412", borderRadius: 10, padding: "12px 14px", fontSize: 15,
+                  lineHeight: 1.6, marginBottom: 10,
+                }}
+              >
+                {highlightMatches(result.originalText, result.matchedKeywords)}
+              </div>
+
+              {/* Asli's reply */}
+              <div style={{ background: "#E7EFE6", border: "1px solid #cfe0cf", borderRadius: 10, padding: "14px 16px", fontSize: 14.5, lineHeight: 1.65, color: "#2c4a34", marginBottom: 12 }}>
+                <div style={{ marginBottom: result.evidence ? 8 : 0 }}>
+                  <b>क्यों:</b> {result.why}
+                </div>
+                <div style={{ fontSize: 12.5, color: "#4d6b56", marginBottom: result.evidence ? 6 : 0 }}>
+                  स्रोत: {result.source}
+                </div>
+                {result.evidence && <div style={{ fontSize: 12.5, color: "#4d6b56" }}>{result.evidence}</div>}
+              </div>
+
+              {result.matched && (
+                <div style={{ display: "inline-block", fontSize: 11, fontWeight: 600, color: "#2E6B4A", background: "#E7EFE6", border: "1px solid #bcdcc4", borderRadius: 999, padding: "5px 12px", marginBottom: 14 }}>
+                  सेव की गई आधिकारिक लिस्ट से जाँचा
+                </div>
+              )}
+
+              {result.genericScam && (
+                <div style={{ display: "inline-block", fontSize: 11, fontWeight: 600, color: "#8f4a1d", background: "#F6E9D8", border: "1px solid #e0c193", borderRadius: 999, padding: "5px 12px", marginBottom: 14 }}>
+                  सामान्य धोखा पैटर्न से मेल खाया
+                </div>
+              )}
+
+              {result.verdict === "unsure" && (
+                <div style={{ fontSize: 12.5, color: "#7A6A4F", fontStyle: "italic", marginBottom: 14 }}>
+                  अनुमान नहीं लगा रहे।
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button
+                  onClick={() => speak(result.tts || result.why)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8, background: "#C77F1D", color: "#2E1D08",
+                    padding: "9px 15px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, fontSize: 13.5,
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+                  </svg>
+                  सुनें
+                </button>
+                <button
+                  onClick={handleCopy}
+                  style={{
+                    background: "rgba(36,31,26,0.06)", border: "1px solid rgba(36,31,26,0.15)",
+                    color: copied ? "#2E6B4A" : "#3A2412", borderRadius: 8, padding: "9px 15px",
+                    fontSize: 13.5, fontWeight: 600, cursor: "pointer",
+                  }}
+                >
+                  {copied ? "✓ कॉपी हो गया" : "परिवार को भेजें"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Footer */}
+        <p style={{ marginTop: 28, padding: "0 8px", fontFamily: "'Kalam', 'Noto Sans Devanagari', cursive", fontSize: 13, color: "#FBEFD8", textAlign: "center", lineHeight: 1.5, transform: "rotate(-0.4deg)", textShadow: "0 1px 6px rgba(0,0,0,0.35)" }}>
+          ये तीन उदाहरण हमेशा काम करते हैं — इंटरनेट हो या न हो। बाकी कोई भी मैसेज हमारे सामान्य
+          धोखा-पैटर्न से जाँचा जाता है, ईमानदारी से — अनिश्चित होने पर हम अंदाज़ा नहीं लगाते।
+        </p>
+        <p style={{ marginTop: 6, textAlign: "center", fontSize: 11.5, color: "#FBEFD8", fontFamily: "'Work Sans', sans-serif", textShadow: "0 1px 6px rgba(0,0,0,0.3)" }}>
+          checked against <b>PIB Fact Check</b> · <b>RBI</b> · <b>MoHFW</b> · <b>SBI</b> advisories
+        </p>
+        <p style={{ marginTop: 10, textAlign: "center", fontSize: 10.5, color: "rgba(251,239,216,0.75)", lineHeight: 1.6, padding: "0 12px" }}>
+          असली सभी गलत जानकारी नहीं पकड़ सकता और यह अभी फोटो/स्क्रीनशॉट में लिखा टेक्स्ट नहीं पढ़ सकता।
+        </p>
       </div>
     </div>
   );
