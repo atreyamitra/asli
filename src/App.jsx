@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 
 // ---------- Locked demo fixtures (Devanagari) — the judged path, cannot fail ----------
 // keywords / verdict / why / source / tts are UNCHANGED from the original build.
-// "evidence" is a display-only field added earlier; still unchanged here.
 const CORE_FIXTURES = [
   {
     id: "camp",
@@ -65,7 +64,7 @@ const TRUSTED_SOURCES = [
 
 const VERDICT_MAP = { VERIFIED: "verified", LIKELY_FALSE: "false", NOT_ENOUGH_PROOF: "unsure" };
 
-// ---------- Person A's 7-message test library — UNCHANGED (dev-only now) ----------
+// ---------- Person A's 7-message test library — UNCHANGED (dev-only) ----------
 const TEST_LIBRARY = [
   {
     id: "M1", label: "Sikar camp (Hinglish)",
@@ -140,6 +139,57 @@ const TEST_LIBRARY = [
 
 const ALL_FIXTURES = [...CORE_FIXTURES, ...TEST_LIBRARY];
 
+// ---------- NEW: generic offline scam-pattern layer ----------
+// Purpose: give a real answer for CUSTOM messages that don't match any known
+// fixture, without any network call. This layer can ONLY ever return "false"
+// (a recognized scam red flag) — it must never invent "verified", since we
+// have no real source backing an arbitrary new claim. Anything that doesn't
+// trip a red flag still falls through to the existing "unsure" fallback.
+const SCAM_PATTERNS = [
+  {
+    id: "otp_pin_request",
+    test: (t) =>
+      ["otp", "ओटीपी", "pin", "पिन", "cvv", "सीवीवी"].some((k) => t.includes(k)),
+    why: "बैंक या सरकार कभी भी OTP, पिन या CVV शेयर करने को नहीं कहता। यह एक जाना-पहचाना धोखा पैटर्न है।",
+    source: "RBI सलाह — सामान्य धोखा पैटर्न",
+  },
+  {
+    id: "kyc_link_urgency",
+    test: (t) =>
+      ["account block", "khata block", "खाता बंद", "account suspend", "kyc expire", "kyc update", "kyc band"].some((k) => t.includes(k)) &&
+      ["link", "लिंक", "click here", "यहाँ क्लिक"].some((k) => t.includes(k)),
+    why: "असली बैंक कभी लिंक भेजकर तुरंत KYC या खाता अपडेट करने को नहीं कहता।",
+    source: "RBI / SBI सलाह — सामान्य धोखा पैटर्न",
+  },
+  {
+    id: "advance_fee",
+    test: (t) =>
+      ["processing fee", "प्रोसेसिंग फीस", "registration fee", "पंजीकरण शुल्क", "advance fee"].some((k) => t.includes(k)) &&
+      ["loan", "लोन", "lottery", "लॉटरी", "prize", "इनाम", "reward"].some((k) => t.includes(k)),
+    why: "असली लोन, इनाम या लॉटरी देने से पहले कभी शुल्क नहीं माँगा जाता।",
+    source: "RBI सलाह — सामान्य धोखा पैटर्न",
+  },
+  {
+    id: "prize_claim",
+    test: (t) =>
+      ["you have won", "aap jeet gaye", "जीत गए है", "lucky winner", "लकी विनर", "congratulations you"].some((k) => t.includes(k)),
+    why: "बिना किसी प्रतियोगिता में भाग लिए इनाम जीतने का दावा अक्सर धोखा होता है।",
+    source: "सामान्य धोखा पैटर्न",
+  },
+  {
+    id: "double_money",
+    test: (t) =>
+      ["double paisa", "पैसा डबल", "guaranteed return", "गारंटीड रिटर्न", "double your money", "paisa double"].some((k) => t.includes(k)),
+    why: "कोई भी असली निवेश पैसा डबल करने की गारंटी नहीं देता। यह निवेश धोखा है।",
+    source: "सामान्य धोखा पैटर्न",
+  },
+];
+
+function detectGenericScam(text) {
+  const t = normalize(text);
+  return SCAM_PATTERNS.find((p) => p.test(t)) || null;
+}
+
 const VERDICTS = {
   verified: { label: "सही", color: "#2FB35A", dim: "#123821" },
   unsure: { label: "पर्याप्त सबूत नहीं", color: "#E0A62C", dim: "#3A2C0C" },
@@ -152,6 +202,7 @@ const NO_MATCH_WHY = "आधिकारिक लिस्ट में यह 
 const SCREENSHOT_WHY =
   "यह एक फोटो/स्क्रीनशॉट लगता है। अभी हम फोटो में लिखा टेक्स्ट नहीं पढ़ सकते — कृपया मैसेज टाइप या पेस्ट करें।";
 const GENERIC_TTS = "Is jaankari ki abhi pushti nahi hui hai. Kripya adhikarik srot se jaanchein.";
+const SCAM_TTS = "Saavdhaan! Yeh jaankari galat hai. Kripya ise aage share na karein.";
 const NO_SOURCE_LABEL = "आधिकारिक लिस्ट में यह दावा नहीं मिला";
 
 function normalize(s) {
@@ -284,7 +335,8 @@ export default function Asli() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoPlayTick]);
 
-  // judge path — no network call. Fixture match or safe "unsure" fallback. Cannot crash.
+  // judge path — no network call. Fixture match, generic scam-pattern match, or
+  // safe "unsure" fallback. Never invents "verified". Cannot crash.
   function runCheck(text) {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -301,6 +353,7 @@ export default function Asli() {
         tts: GENERIC_TTS,
         evidence: null,
         matched: false,
+        genericScam: false,
         originalText: trimmed,
         matchedKeywords: [],
       });
@@ -319,8 +372,28 @@ export default function Asli() {
         tts: fixture.tts,
         evidence: fixture.evidence || null,
         matched: true,
+        genericScam: false,
         originalText: trimmed,
         matchedKeywords,
+      });
+      setStatus("done");
+      return;
+    }
+
+    // no exact fixture — check generic offline scam red flags before giving up
+    const scamHit = detectGenericScam(trimmed);
+    if (scamHit) {
+      setResult({
+        id: `scam-${scamHit.id}`,
+        verdict: "false",
+        why: scamHit.why,
+        source: scamHit.source,
+        tts: SCAM_TTS,
+        evidence: null,
+        matched: false,
+        genericScam: true,
+        originalText: trimmed,
+        matchedKeywords: [],
       });
       setStatus("done");
       return;
@@ -334,6 +407,7 @@ export default function Asli() {
       tts: GENERIC_TTS,
       evidence: null,
       matched: false,
+      genericScam: false,
       originalText: trimmed,
       matchedKeywords: [],
     });
@@ -623,6 +697,18 @@ export default function Asli() {
               </div>
             )}
 
+            {result.genericScam && (
+              <div
+                style={{
+                  display: "inline-block", fontSize: 11.5, fontWeight: 600,
+                  color: "#f2a65a", background: "#2a1a0d", border: "1px solid #4a2f1f",
+                  borderRadius: 999, padding: "5px 12px", marginBottom: 14,
+                }}
+              >
+                सामान्य धोखा पैटर्न से मेल खाया
+              </div>
+            )}
+
             {result.verdict === "unsure" && (
               <div style={{ fontSize: 13, color: "#888", marginBottom: 14, fontStyle: "italic" }}>
                 अनुमान नहीं लगा रहे।
@@ -654,9 +740,9 @@ export default function Asli() {
         )}
 
         <div style={{ marginTop: 26, fontSize: 11, color: "#4d4d4d", lineHeight: 1.6 }}>
-          असली सभी गलत जानकारी नहीं पकड़ सकता। यह एक छोटी आधिकारिक स्रोत सूची से जाँचता है और
-          अनिश्चित होने पर "पर्याप्त सबूत नहीं" कहता है। यह अभी फोटो/स्क्रीनशॉट में लिखा टेक्स्ट
-          नहीं पढ़ सकता।
+          असली सभी गलत जानकारी नहीं पकड़ सकता। यह एक छोटी आधिकारिक स्रोत सूची और सामान्य धोखा
+          पैटर्न से जाँचता है, और अनिश्चित होने पर "पर्याप्त सबूत नहीं" कहता है। यह अभी
+          फोटो/स्क्रीनशॉट में लिखा टेक्स्ट नहीं पढ़ सकता।
         </div>
       </div>
     </div>
