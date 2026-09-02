@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 
 // ---------- Locked demo fixtures (Devanagari) — the judged path, cannot fail ----------
-// NOTE: keywords / verdict / why / source / tts are UNCHANGED. Only an optional
-// "evidence" field was added for display in the result card.
+// keywords / verdict / why / source / tts are UNCHANGED from the original build.
+// "evidence" is a display-only field added earlier; still unchanged here.
 const CORE_FIXTURES = [
   {
     id: "camp",
     label: "Camp",
+    chip: "शिविर",
     sample:
       "सिलाई / सीकर जिला अस्पताल में मुफ्त नेत्र शिविर, 3–5 सितंबर। रजिस्ट्रेशन जरूरी।",
     keywords: [
@@ -22,6 +23,7 @@ const CORE_FIXTURES = [
   {
     id: "phish",
     label: "Phish",
+    chip: "OTP",
     sample: "आपका SBI खाता कल बंद होगा। यह लिंक खोलो और आधार OTP भेजो।",
     keywords: [
       "sbi", "आधार", "aadhar", "aadhaar", "otp", "बंद होगा", "account clos",
@@ -36,6 +38,7 @@ const CORE_FIXTURES = [
   {
     id: "rumour",
     label: "Rumour",
+    chip: "राशन",
     sample: "यह मैसेज 10 लोगों को भेजो, सरकार मुफ्त राशन देगी।",
     keywords: [
       "राशन", "ration", "10 लोगों", "10 people", "forward", "मुफ्त राशन",
@@ -62,7 +65,7 @@ const TRUSTED_SOURCES = [
 
 const VERDICT_MAP = { VERIFIED: "verified", LIKELY_FALSE: "false", NOT_ENOUGH_PROOF: "unsure" };
 
-// ---------- Person A's 7-message test library — UNCHANGED (only "evidence" added for display) ----------
+// ---------- Person A's 7-message test library — UNCHANGED (dev-only now) ----------
 const TEST_LIBRARY = [
   {
     id: "M1", label: "Sikar camp (Hinglish)",
@@ -138,9 +141,9 @@ const TEST_LIBRARY = [
 const ALL_FIXTURES = [...CORE_FIXTURES, ...TEST_LIBRARY];
 
 const VERDICTS = {
-  verified: { label: "सही", color: "#2FB35A", dim: "#123821", icon: "✅" },
-  unsure: { label: "पर्याप्त सबूत नहीं", color: "#E0A62C", dim: "#3A2C0C", icon: "❓" },
-  false: { label: "गलत लग रहा है", color: "#FF3131", dim: "#3A0F0F", icon: "❌" },
+  verified: { label: "सही", color: "#2FB35A", dim: "#123821" },
+  unsure: { label: "पर्याप्त सबूत नहीं", color: "#E0A62C", dim: "#3A2C0C" },
+  false: { label: "गलत लग रहा है", color: "#FF3131", dim: "#3A0F0F" },
 };
 
 const SCREENSHOT_HINTS = ["screenshot", "स्क्रीनशॉट", "photo", "image", "फोटो", "जेपीजी", "png", "jpg"];
@@ -149,6 +152,7 @@ const NO_MATCH_WHY = "आधिकारिक लिस्ट में यह 
 const SCREENSHOT_WHY =
   "यह एक फोटो/स्क्रीनशॉट लगता है। अभी हम फोटो में लिखा टेक्स्ट नहीं पढ़ सकते — कृपया मैसेज टाइप या पेस्ट करें।";
 const GENERIC_TTS = "Is jaankari ki abhi pushti nahi hui hai. Kripya adhikarik srot se jaanchein.";
+const NO_SOURCE_LABEL = "आधिकारिक लिस्ट में यह दावा नहीं मिला";
 
 function normalize(s) {
   return s.toLowerCase();
@@ -158,8 +162,8 @@ function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// matching logic — scoring/threshold UNCHANGED. Only addition: also return which
-// specific keywords were actually found, so the UI can highlight them (reasoning display).
+// matching logic — scoring/threshold UNCHANGED. Also returns which keywords were
+// actually found, purely so the grey message bubble can highlight them.
 function matchFixture(text) {
   const t = normalize(text);
   let best = null;
@@ -185,32 +189,6 @@ function matchFixture(text) {
   return { fixture: best, matchedKeywords: bestMatchedKeywords };
 }
 
-// Seed counts so the report feature doesn't look empty on first demo run.
-// Purely cosmetic starting points — real increments still persist via localStorage.
-const REPORT_SEED = {
-  camp: 1, phish: 47, rumour: 9,
-  M1: 0, M2: 1, M3: 63, M4: 21, M5: 34, M6: 6, M7: 4,
-  unmatched: 2, screenshot: 0,
-};
-
-function readReportCount(key) {
-  try {
-    const stored = window.localStorage.getItem(`asli_report_${key}`);
-    if (stored !== null) return parseInt(stored, 10) || 0;
-  } catch (e) {
-    // localStorage unavailable — fall back to seed only, never crash
-  }
-  return REPORT_SEED[key] ?? 0;
-}
-
-function writeReportCount(key, value) {
-  try {
-    window.localStorage.setItem(`asli_report_${key}`, String(value));
-  } catch (e) {
-    // best-effort only
-  }
-}
-
 function looksLikeScreenshotOnly(text) {
   const t = normalize(text.trim());
   if (t.length === 0) return false;
@@ -233,8 +211,6 @@ function speak(text) {
   }
 }
 
-// Splits `text` into React nodes, wrapping any occurrence of any `keywords` entry
-// in a highlighted <mark> — this is what makes the match reasoning visible/provable.
 function highlightMatches(text, keywords) {
   if (!keywords || keywords.length === 0) return text;
   const sorted = [...keywords].sort((a, b) => b.length - a.length).map(escapeRegExp);
@@ -245,10 +221,7 @@ function highlightMatches(text, keywords) {
     return isMatch ? (
       <mark
         key={i}
-        style={{
-          background: "#3A2C0C", color: "#F2C14E", padding: "1px 3px",
-          borderRadius: 4, fontWeight: 700,
-        }}
+        style={{ background: "#3A2C0C", color: "#F2C14E", padding: "1px 3px", borderRadius: 4, fontWeight: 700 }}
       >
         {part}
       </mark>
@@ -258,20 +231,18 @@ function highlightMatches(text, keywords) {
   });
 }
 
-function shareToWhatsApp(result) {
+async function copyFamilySummary(result) {
   const lines = [
     `असली जाँच: ${VERDICTS[result.verdict].label}`,
     result.why,
     `स्रोत: ${result.source}`,
   ];
-  const message = lines.join("\n");
-  if (navigator.share) {
-    navigator.share({ text: message }).catch(() => {
-      // user cancelled share sheet — no action needed
-    });
-  } else {
-    const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    window.open(url, "_blank");
+  const text = lines.join("\n");
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (e) {
+    return false;
   }
 }
 
@@ -279,26 +250,19 @@ export default function Asli() {
   const [input, setInput] = useState("");
   const [status, setStatus] = useState("idle");
   const [result, setResult] = useState(null);
-  const [showDev, setShowDev] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [showDevLibrary, setShowDevLibrary] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [isOnline, setIsOnline] = useState(
     typeof navigator !== "undefined" ? navigator.onLine : true
   );
-  const [reportCounts, setReportCounts] = useState({});
-  const [reportedThisResult, setReportedThisResult] = useState(false);
+  const [autoPlayTick, setAutoPlayTick] = useState(0);
   const recognitionRef = useRef(null);
+  const resultRef = useRef(null);
 
-  function getReportCount(key) {
-    if (Object.prototype.hasOwnProperty.call(reportCounts, key)) return reportCounts[key];
-    return readReportCount(key);
-  }
-
-  function handleReport(key) {
-    const next = getReportCount(key) + 1;
-    setReportCounts((prev) => ({ ...prev, [key]: next }));
-    writeReportCount(key, next);
-    setReportedThisResult(true);
-  }
+  const devMode =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("dev") === "1";
 
   useEffect(() => {
     const goOnline = () => setIsOnline(true);
@@ -311,20 +275,29 @@ export default function Asli() {
     };
   }, []);
 
+  // auto-scroll + auto-speak once, only for demo-chip taps
+  useEffect(() => {
+    if (result && autoPlayTick > 0) {
+      resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      speak(result.tts || result.why);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPlayTick]);
+
   // judge path — no network call. Fixture match or safe "unsure" fallback. Cannot crash.
   function runCheck(text) {
     const trimmed = text.trim();
     if (!trimmed) return;
     setStatus("checking");
     setResult(null);
-    setReportedThisResult(false);
+    setCopied(false);
 
     if (looksLikeScreenshotOnly(trimmed)) {
       setResult({
         id: "screenshot",
         verdict: "unsure",
         why: SCREENSHOT_WHY,
-        source: "आधिकारिक लिस्ट में यह दावा नहीं मिला",
+        source: NO_SOURCE_LABEL,
         tts: GENERIC_TTS,
         evidence: null,
         matched: false,
@@ -357,7 +330,7 @@ export default function Asli() {
       id: "unmatched",
       verdict: "unsure",
       why: NO_MATCH_WHY,
-      source: "आधिकारिक लिस्ट में यह दावा नहीं मिला",
+      source: NO_SOURCE_LABEL,
       tts: GENERIC_TTS,
       evidence: null,
       matched: false,
@@ -367,7 +340,13 @@ export default function Asli() {
     setStatus("done");
   }
 
-  function loadFixture(fx) {
+  function tapChip(fx) {
+    setInput(fx.sample);
+    runCheck(fx.sample);
+    setAutoPlayTick((t) => t + 1);
+  }
+
+  function loadDevFixture(fx) {
     setInput(fx.sample);
     runCheck(fx.sample);
   }
@@ -395,6 +374,14 @@ export default function Asli() {
     recognition.start();
   }
 
+  async function handleCopy() {
+    const ok = await copyFamilySummary(result);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    }
+  }
+
   const voiceSupported =
     typeof window !== "undefined" &&
     (window.SpeechRecognition || window.webkitSpeechRecognition);
@@ -405,82 +392,99 @@ export default function Asli() {
     <div
       style={{
         minHeight: "100vh",
-        background: "#000",
-        color: "#fff",
-        fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif",
-        padding: "20px 14px 40px",
+        background: "#050505",
         display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
+        justifyContent: "center",
+        padding: "28px 12px",
+        fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif",
       }}
     >
-      <div style={{ width: "100%", maxWidth: 480, position: "relative" }}>
-        {/* tiny hidden dev toggle */}
-        <button
-          onClick={() => setShowDev((s) => !s)}
-          style={{
-            position: "absolute", top: 0, right: 0, background: "transparent",
-            border: "none", color: "#333", fontSize: 11, cursor: "pointer", padding: 4,
-          }}
-        >
-          dev
-        </button>
+      <style>{`
+        @keyframes asliFadeSlideIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        textarea::placeholder { color: #6b6b6b; }
+      `}</style>
 
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 12, letterSpacing: 1, color: "#8a8a8a", marginBottom: 4 }}>
-            Turing Hacks 4.0 — PS06
-          </div>
-          <h1 style={{ fontSize: 34, fontWeight: 800, margin: 0, letterSpacing: -0.5 }}>
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 390,
+          background: "#000",
+          color: "#fff",
+          border: "1px solid #1e1e1e",
+          borderRadius: 28,
+          boxShadow: "0 25px 60px rgba(0,0,0,0.55)",
+          padding: "20px 16px 26px",
+          position: "relative",
+          boxSizing: "border-box",
+        }}
+      >
+        {devMode && (
+          <button
+            onClick={() => setShowDevLibrary((s) => !s)}
+            style={{
+              position: "absolute", top: 12, right: 14, background: "transparent",
+              border: "none", color: "#3a3a3a", fontSize: 11, cursor: "pointer", padding: 4,
+            }}
+          >
+            dev
+          </button>
+        )}
+
+        {/* Header */}
+        <div style={{ marginBottom: 16 }}>
+          <h1 style={{ fontSize: 30, fontWeight: 800, margin: 0, letterSpacing: -0.5 }}>
             असली
           </h1>
-          <div style={{ color: "#bbb", fontSize: 14, marginTop: 6, lineHeight: 1.5 }}>
-            व्हाट्सऐप फॉरवर्ड को आधिकारिक स्रोतों से जाँचें।
+          <div style={{ color: "#9a9a9a", fontSize: 14, marginTop: 4, lineHeight: 1.4 }}>
+            फ़ॉरवर्ड आया। असली जाँचता है।
+          </div>
+          <div
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6, marginTop: 10,
+              fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 999,
+              color: isOnline ? "#7a7a7a" : "#7fd99a",
+              background: isOnline ? "#121212" : "#0f2417",
+              border: `1px solid ${isOnline ? "#262626" : "#1f4a2c"}`,
+            }}
+          >
+            <span
+              style={{
+                width: 6, height: 6, borderRadius: "50%",
+                background: isOnline ? "#5a5a5a" : "#3ddc6f", display: "inline-block",
+              }}
+            />
+            {isOnline ? "ऑनलाइन" : "ऑफ़लाइन मोड"}
           </div>
         </div>
 
-        {/* connectivity badge — proves the low-bandwidth / offline-capable claim live */}
-        <div
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 16,
-            fontSize: 11.5, fontWeight: 600, padding: "5px 11px", borderRadius: 999,
-            color: isOnline ? "#8a8a8a" : "#7fd99a",
-            background: isOnline ? "#111" : "#0f2417",
-            border: `1px solid ${isOnline ? "#2a2a2a" : "#1f4a2c"}`,
-          }}
-        >
-          <span
-            style={{
-              width: 7, height: 7, borderRadius: "50%",
-              background: isOnline ? "#666" : "#3ddc6f",
-              display: "inline-block",
-            }}
-          />
-          {isOnline ? "ऑनलाइन" : "ऑफ़लाइन मोड — इंटरनेट की जरूरत नहीं"}
-        </div>
-
-        <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+        {/* Demo chips */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
           {CORE_FIXTURES.map((fx) => (
             <button
               key={fx.id}
-              onClick={() => loadFixture(fx)}
+              onClick={() => tapChip(fx)}
               style={{
-                background: "#141414", border: "1px solid #333", color: "#fff",
-                borderRadius: 8, padding: "8px 14px", fontSize: 13.5, cursor: "pointer",
+                flex: 1, background: "#141414", border: "1px solid #2a2a2a", color: "#fff",
+                borderRadius: 999, padding: "10px 8px", fontSize: 14.5, fontWeight: 600,
+                cursor: "pointer",
               }}
             >
-              Try: {fx.label}
+              {fx.chip}
             </button>
           ))}
         </div>
 
-        {showDev && (
+        {devMode && showDevLibrary && (
           <div
             style={{
               display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14,
-              padding: 12, background: "#0a0a0a", border: "1px solid #222", borderRadius: 10,
+              padding: 12, background: "#0a0a0a", border: "1px solid #1e1e1e", borderRadius: 10,
             }}
           >
-            <div style={{ width: "100%", fontSize: 11, color: "#666", marginBottom: 4 }}>
+            <div style={{ width: "100%", fontSize: 11, color: "#666", marginBottom: 2 }}>
               Dev test library ({TEST_LIBRARY.length})
             </div>
             {TEST_LIBRARY.map((fx) => {
@@ -488,7 +492,7 @@ export default function Asli() {
               return (
                 <button
                   key={fx.id}
-                  onClick={() => loadFixture(fx)}
+                  onClick={() => loadDevFixture(fx)}
                   style={{
                     background: "#111", border: `1px solid ${v.color}55`, color: v.color,
                     borderRadius: 6, padding: "6px 10px", fontSize: 12, cursor: "pointer",
@@ -501,14 +505,22 @@ export default function Asli() {
           </div>
         )}
 
+        {!result && (
+          <div style={{ fontSize: 13.5, color: "#777", textAlign: "center", margin: "6px 0 16px", lineHeight: 1.6 }}>
+            तीन उदाहरण ऊपर हैं। या मैसेज पेस्ट करें।
+          </div>
+        )}
+
+        {/* Compose box */}
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="व्हाट्सऐप वाला मैसेज यहाँ पेस्ट करें"
+          rows={3}
           style={{
-            width: "100%", minHeight: 110, background: "#0d0d0d", border: "1px solid #333",
-            borderRadius: 10, color: "#fff", fontSize: 16, padding: 14, boxSizing: "border-box",
-            resize: "vertical", fontFamily: "inherit",
+            width: "100%", background: "#141414", border: "1px solid #2a2a2a",
+            borderRadius: 20, color: "#fff", fontSize: 16, padding: "14px 16px",
+            boxSizing: "border-box", resize: "none", fontFamily: "inherit",
           }}
         />
 
@@ -517,10 +529,11 @@ export default function Asli() {
             onClick={startListening}
             disabled={isListening}
             style={{
-              width: "100%", marginTop: 10, background: isListening ? "#2a0d0d" : "#141414",
-              border: `1px solid ${isListening ? "#FF3131" : "#333"}`,
-              color: isListening ? "#FF3131" : "#fff", fontWeight: 600, fontSize: 15,
-              borderRadius: 8, padding: "12px 16px",
+              width: "100%", marginTop: 10,
+              background: isListening ? "#1a1a0d" : "#141414",
+              border: `1px solid ${isListening ? "#E0A62C" : "#2a2a2a"}`,
+              color: isListening ? "#E0A62C" : "#fff", fontWeight: 600, fontSize: 15,
+              borderRadius: 14, padding: "12px 16px",
               cursor: isListening ? "default" : "pointer",
             }}
           >
@@ -528,163 +541,121 @@ export default function Asli() {
           </button>
         )}
 
-        <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-          <button
-            onClick={() => runCheck(input)}
-            disabled={status === "checking" || !input.trim()}
-            style={{
-              flex: 1, background: "#FF3131", border: "none", color: "#fff", fontWeight: 700,
-              fontSize: 16, borderRadius: 8, padding: "13px 20px",
-              cursor: status === "checking" ? "default" : "pointer",
-              opacity: status === "checking" || !input.trim() ? 0.6 : 1,
-            }}
-          >
-            {status === "checking" ? "जाँच रहे हैं…" : "जाँचें"}
-          </button>
+        <button
+          onClick={() => runCheck(input)}
+          disabled={status === "checking" || !input.trim()}
+          style={{
+            width: "100%", marginTop: 10, background: "#FF3131", border: "none", color: "#fff",
+            fontWeight: 700, fontSize: 17, borderRadius: 14, padding: "15px 20px",
+            cursor: status === "checking" ? "default" : "pointer",
+            opacity: status === "checking" || !input.trim() ? 0.6 : 1,
+          }}
+        >
+          {status === "checking" ? "जाँच रहे हैं…" : "जाँचें"}
+        </button>
+
+        {(input || result) && (
           <button
             onClick={() => { setInput(""); setResult(null); setStatus("idle"); }}
             style={{
-              background: "transparent", border: "1px solid #333", color: "#bbb",
-              borderRadius: 8, padding: "13px 18px", cursor: "pointer", fontSize: 15,
+              width: "100%", marginTop: 8, background: "transparent", border: "none",
+              color: "#666", fontSize: 13, cursor: "pointer", padding: "6px",
             }}
           >
             मिटाएँ
           </button>
-        </div>
-
-        <div style={{ display: "flex", gap: 8, marginTop: 24 }}>
-          {Object.entries(VERDICTS).map(([key, v]) => {
-            const active = result && result.verdict === key;
-            return (
-              <div
-                key={key}
-                style={{
-                  flex: 1, textAlign: "center", padding: "9px 4px", borderRadius: 8,
-                  fontSize: 12, fontWeight: 700,
-                  border: `1.5px solid ${active ? v.color : "#2a2a2a"}`,
-                  background: active ? v.dim : "#0d0d0d",
-                  color: active ? v.color : "#666",
-                  transition: "all 0.15s ease",
-                }}
-              >
-                {v.label}
-              </div>
-            );
-          })}
-        </div>
-
-        {result && result.matched && result.matchedKeywords.length > 0 && (
-          <div
-            style={{
-              marginTop: 16, background: "#0a0a0a", border: "1px solid #222",
-              borderRadius: 10, padding: 14, fontSize: 14.5, lineHeight: 1.7, color: "#ccc",
-            }}
-          >
-            <div style={{ fontSize: 11, color: "#666", marginBottom: 8, fontWeight: 600 }}>
-              आपके मैसेज में यह शब्द मैच हुए —
-            </div>
-            {highlightMatches(result.originalText, result.matchedKeywords)}
-          </div>
         )}
 
+        {/* Result — the hero */}
         {result && (
           <div
-            style={{
-              marginTop: 14, background: "#0d0d0d", border: `1.5px solid ${verdictInfo.color}`,
-              borderRadius: 12, padding: 18,
-            }}
+            ref={resultRef}
+            style={{ marginTop: 22, animation: "asliFadeSlideIn 200ms ease-out" }}
           >
-            <div style={{ textAlign: "center", marginBottom: 10 }}>
-              <div style={{ fontSize: 56, lineHeight: 1 }}>{verdictInfo.icon}</div>
+            <div
+              style={{
+                textAlign: "center", fontSize: 26, fontWeight: 800,
+                color: verdictInfo.color, marginBottom: 14,
+              }}
+            >
+              {verdictInfo.label}
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <div style={{ color: verdictInfo.color, fontWeight: 800, fontSize: 18 }}>
-                {verdictInfo.label}
+            {/* incoming message bubble */}
+            <div
+              style={{
+                background: "#1f1f1f", color: "#eee", borderRadius: "16px 16px 16px 4px",
+                padding: "12px 14px", fontSize: 15.5, lineHeight: 1.6, marginBottom: 10,
+                maxWidth: "92%",
+              }}
+            >
+              {highlightMatches(result.originalText, result.matchedKeywords)}
+            </div>
+
+            {/* Asli's reply bubble */}
+            <div
+              style={{
+                background: "#0f2b22", color: "#e6f5ee", borderRadius: "16px 16px 4px 16px",
+                padding: "14px 16px", fontSize: 15.5, lineHeight: 1.65,
+                marginLeft: "8%", marginBottom: 12,
+              }}
+            >
+              <div style={{ marginBottom: result.evidence ? 8 : 0 }}>
+                <b>क्यों:</b> {result.why}
               </div>
-              <button
-                onClick={() => speak(result.tts || result.why)}
-                title="सुनें"
-                style={{
-                  background: "transparent", border: `1px solid ${verdictInfo.color}`,
-                  color: verdictInfo.color, borderRadius: 999, width: 36, height: 36,
-                  cursor: "pointer", fontSize: 16, flexShrink: 0,
-                }}
-              >
-                🔊
-              </button>
-            </div>
-
-            <div style={{ fontSize: 16, color: "#eee", marginBottom: 12, lineHeight: 1.5 }}>
-              {result.why}
-            </div>
-
-            <div style={{ fontSize: 13, color: "#888", marginBottom: result.evidence ? 8 : 0 }}>
-              स्रोत: <span style={{ color: "#bbb" }}>{result.source}</span>
-            </div>
-
-            {result.evidence && (
-              <div
-                style={{
-                  fontSize: 13, color: "#aaa", lineHeight: 1.5, marginTop: 6,
-                  paddingTop: 10, borderTop: "1px solid #222",
-                }}
-              >
-                {result.evidence}
+              <div style={{ fontSize: 13, color: "#a9c9bd", marginBottom: result.evidence ? 6 : 0 }}>
+                स्रोत: {result.source}
               </div>
-            )}
+              {result.evidence && (
+                <div style={{ fontSize: 13, color: "#a9c9bd" }}>{result.evidence}</div>
+              )}
+            </div>
 
             {result.matched && (
               <div
                 style={{
-                  marginTop: 12, display: "inline-block", fontSize: 11.5, fontWeight: 600,
+                  display: "inline-block", fontSize: 11.5, fontWeight: 600,
                   color: "#7fd99a", background: "#0f2417", border: "1px solid #1f4a2c",
-                  borderRadius: 999, padding: "5px 12px",
+                  borderRadius: 999, padding: "5px 12px", marginBottom: 14,
                 }}
               >
                 सेव की गई आधिकारिक लिस्ट से जाँचा
               </div>
             )}
 
-            <div
-              style={{
-                marginTop: 14, paddingTop: 12, borderTop: "1px solid #222",
-                display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8,
-              }}
-            >
+            {result.verdict === "unsure" && (
+              <div style={{ fontSize: 13, color: "#888", marginBottom: 14, fontStyle: "italic" }}>
+                अनुमान नहीं लगा रहे।
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 8 }}>
               <button
-                onClick={() => handleReport(result.id)}
-                disabled={reportedThisResult}
+                onClick={() => speak(result.tts || result.why)}
                 style={{
-                  background: "transparent", border: "1px solid #333",
-                  color: reportedThisResult ? "#555" : "#bbb",
-                  borderRadius: 8, padding: "8px 14px", fontSize: 13,
-                  cursor: reportedThisResult ? "default" : "pointer",
+                  flex: 1, background: "#141414", border: "1px solid #2a2a2a", color: "#fff",
+                  borderRadius: 12, padding: "12px 10px", fontSize: 14, cursor: "pointer",
                 }}
               >
-                {reportedThisResult ? "🚩 रिपोर्ट भेज दी गई" : "🚩 यह गलत लगा? रिपोर्ट करें"}
+                🔊 सुनें
               </button>
-              <div style={{ fontSize: 12, color: "#666" }}>
-                {getReportCount(result.id)} लोगों ने रिपोर्ट किया
-              </div>
+              <button
+                onClick={handleCopy}
+                style={{
+                  flex: 1, background: "#141414", border: "1px solid #2a2a2a",
+                  color: copied ? "#7fd99a" : "#fff",
+                  borderRadius: 12, padding: "12px 10px", fontSize: 14, cursor: "pointer",
+                }}
+              >
+                {copied ? "✓ कॉपी हो गया" : "परिवार को भेजें"}
+              </button>
             </div>
-
-            <button
-              onClick={() => shareToWhatsApp(result)}
-              style={{
-                width: "100%", marginTop: 10, background: "#0f2417",
-                border: "1px solid #1f4a2c", color: "#7fd99a", fontWeight: 600,
-                fontSize: 14, borderRadius: 8, padding: "11px 16px", cursor: "pointer",
-              }}
-            >
-              📤 यह जवाब व्हाट्सऐप पर भेजें
-            </button>
           </div>
         )}
 
-        <div style={{ marginTop: 30, fontSize: 11.5, color: "#555", lineHeight: 1.6 }}>
-          असली सभी गलत जानकारी नहीं पकड़ सकता। यह केवल एक छोटी आधिकारिक स्रोत सूची से जाँचता है,
-          और अनिश्चित होने पर "पर्याप्त सबूत नहीं" कहता है। यह अभी फोटो/स्क्रीनशॉट में लिखा टेक्स्ट
+        <div style={{ marginTop: 26, fontSize: 11, color: "#4d4d4d", lineHeight: 1.6 }}>
+          असली सभी गलत जानकारी नहीं पकड़ सकता। यह एक छोटी आधिकारिक स्रोत सूची से जाँचता है और
+          अनिश्चित होने पर "पर्याप्त सबूत नहीं" कहता है। यह अभी फोटो/स्क्रीनशॉट में लिखा टेक्स्ट
           नहीं पढ़ सकता।
         </div>
       </div>
