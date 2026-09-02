@@ -138,9 +138,9 @@ const TEST_LIBRARY = [
 const ALL_FIXTURES = [...CORE_FIXTURES, ...TEST_LIBRARY];
 
 const VERDICTS = {
-  verified: { label: "सही", color: "#2FB35A", dim: "#123821" },
-  unsure: { label: "पर्याप्त सबूत नहीं", color: "#E0A62C", dim: "#3A2C0C" },
-  false: { label: "गलत लग रहा है", color: "#FF3131", dim: "#3A0F0F" },
+  verified: { label: "सही", color: "#2FB35A", dim: "#123821", icon: "✅" },
+  unsure: { label: "पर्याप्त सबूत नहीं", color: "#E0A62C", dim: "#3A2C0C", icon: "❓" },
+  false: { label: "गलत लग रहा है", color: "#FF3131", dim: "#3A0F0F", icon: "❌" },
 };
 
 const SCREENSHOT_HINTS = ["screenshot", "स्क्रीनशॉट", "photo", "image", "फोटो", "जेपीजी", "png", "jpg"];
@@ -256,6 +256,23 @@ function highlightMatches(text, keywords) {
       <span key={i}>{part}</span>
     );
   });
+}
+
+function shareToWhatsApp(result) {
+  const lines = [
+    `असली जाँच: ${VERDICTS[result.verdict].label}`,
+    result.why,
+    `स्रोत: ${result.source}`,
+  ];
+  const message = lines.join("\n");
+  if (navigator.share) {
+    navigator.share({ text: message }).catch(() => {
+      // user cancelled share sheet — no action needed
+    });
+  } else {
+    const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(url, "_blank");
+  }
 }
 
 export default function Asli() {
@@ -577,6 +594,10 @@ export default function Asli() {
               borderRadius: 12, padding: 18,
             }}
           >
+            <div style={{ textAlign: "center", marginBottom: 10 }}>
+              <div style={{ fontSize: 56, lineHeight: 1 }}>{verdictInfo.icon}</div>
+            </div>
+
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <div style={{ color: verdictInfo.color, fontWeight: 800, fontSize: 18 }}>
                 {verdictInfo.label}
@@ -628,7 +649,7 @@ export default function Asli() {
             <div
               style={{
                 marginTop: 14, paddingTop: 12, borderTop: "1px solid #222",
-                display: "flex", alignItems: "center", justifyContent: "space-between",
+                display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8,
               }}
             >
               <button
@@ -647,6 +668,17 @@ export default function Asli() {
                 {getReportCount(result.id)} लोगों ने रिपोर्ट किया
               </div>
             </div>
+
+            <button
+              onClick={() => shareToWhatsApp(result)}
+              style={{
+                width: "100%", marginTop: 10, background: "#0f2417",
+                border: "1px solid #1f4a2c", color: "#7fd99a", fontWeight: 600,
+                fontSize: 14, borderRadius: 8, padding: "11px 16px", cursor: "pointer",
+              }}
+            >
+              📤 यह जवाब व्हाट्सऐप पर भेजें
+            </button>
           </div>
         )}
 
