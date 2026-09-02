@@ -178,6 +178,14 @@ const SCAM_PATTERNS = [
     why: "कोई भी असली निवेश पैसा डबल करने की गारंटी नहीं देता। यह निवेश धोखा है।",
     source: "सामान्य धोखा पैटर्न",
   },
+  {
+    id: "bank_details_request",
+    test: (t) =>
+      ["bank details", "account details", "बैंक डिटेल", "अकाउंट डिटेल", "bank account number",
+       "खाता विवरण", "bank account details", "account number de", "khata vivaran"].some((k) => t.includes(k)),
+    why: "कोई भी असली इनाम या रकम पाने के लिए आपसे बैंक डिटेल माँगना ज़रूरी नहीं होता। यह धोखे का एक आम तरीका है।",
+    source: "सामान्य धोखा पैटर्न",
+  },
 ];
 
 function detectGenericScam(text) {
